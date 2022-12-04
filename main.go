@@ -53,10 +53,6 @@ func main() {
 		}); err != nil {
 			log.Fatalf("Couldn't set cookie: %v", err)
 		}
-		cookies, err := browser.Cookies()
-		if err != nil {
-			log.Fatalf("Couldn't get cookies: %v", err)
-		}
 	}
 
 
