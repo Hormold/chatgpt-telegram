@@ -136,7 +136,7 @@ func main() {
 
 		if !update.Message.IsCommand() {
 
-			if strings.Contains(update.Message.Text, "@" + os.Getenv("TELEGRAM_USERNAME")) {
+			if strings.Contains(update.Message.Text, "@" + bot.Self.UserName) {
 				// Log the message
 				log.Printf("Message from %s: %s", update.Message.From.UserName, update.Message.Text)
 				response, err := query_chatgpt(update.Message.Text, page, bot, tgbotapi.NewChatAction(update.Message.Chat.ID, "typing"))
