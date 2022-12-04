@@ -17,6 +17,7 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
+
 func main() {
 	runOptions := playwright.RunOptions{
 		Browsers: []string{"chromium"},
@@ -32,7 +33,32 @@ func main() {
 		log.Fatalf("Couldn't start headless browser: %v", err)
 	}
 
+	err = godotenv.Load()
+	if err != nil {
+		log.Fatalf("Couldn't load .env file: %v", err)
+	}
+
 	browser, page := launchBrowser(pw, "https://chat.openai.com", true)
+
+
+	if os.Getenv("OPENAI_SESSION") == "" {
+		if err := browser.AddCookies(playwright.BrowserContextAddCookiesOptionsCookies{
+			Name:  playwright.String("__Secure-next-auth.session-token"),
+			Value: playwright.String(os.Getenv("OPENAI_SESSION")),
+			Domain: playwright.String("chat.openai.com"),
+			Path: playwright.String("/"),
+			SameSite: playwright.SameSiteAttributeLax,
+			Secure: playwright.Bool(true),
+			HttpOnly: playwright.Bool(true),
+		}); err != nil {
+			log.Fatalf("Couldn't set cookie: %v", err)
+		}
+		cookies, err := browser.Cookies()
+		if err != nil {
+			log.Fatalf("Couldn't get cookies: %v", err)
+		}
+	}
+
 
 	for !isLoggedIn(page) {
 		cookies := <-logIn(pw)
@@ -65,10 +91,7 @@ func main() {
 	}
 	log.Println("Started ChatGPT")
 
-	err = godotenv.Load()
-	if err != nil {
-		log.Fatalf("Couldn't load .env file: %v", err)
-	}
+	
 
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_TOKEN"))
 	if err != nil {
@@ -112,15 +135,21 @@ func main() {
 		}
 
 		if !update.Message.IsCommand() {
-			response, err := query_chatgpt(update.Message.Text, page, bot, tgbotapi.NewChatAction(update.Message.Chat.ID, "typing"))
-			if err != nil {
-				msg.Text = fmt.Sprintf("Error: %v", err)
-			} else {
-				msg.Text = response
-			}
 
-			if _, err := bot.Send(msg); err != nil {
-				log.Fatalf("Couldn't send message: %v", err)
+			if strings.Contains(update.Message.Text, "@" + os.Getenv("TELEGRAM_USERNAME")) {
+				// Log the message
+				log.Printf("Message from %s: %s", update.Message.From.UserName, update.Message.Text)
+				response, err := query_chatgpt(update.Message.Text, page, bot, tgbotapi.NewChatAction(update.Message.Chat.ID, "typing"))
+				if err != nil {
+					msg.Text = fmt.Sprintf("Error: %v", err)
+				} else {
+					msg.Text = response
+				}
+
+				if _, err := bot.Send(msg); err != nil {
+					log.Fatalf("Couldn't send message: %v", err)
+				}
+				
 			}
 			continue
 		}
