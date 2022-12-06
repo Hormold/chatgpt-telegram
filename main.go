@@ -97,7 +97,6 @@ func main() {
 			}
 
 			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-			// Trim a mention (ONLY FROM START OF MESSAGE!)
 			if isGroup {
 				update.Message.Text = strings.TrimPrefix(update.Message.Text, "@"+bot.Self.UserName)
 			}
@@ -131,9 +130,13 @@ func main() {
 				}
 			})
 
+			debouncedType := ratelimit.Debounce((7 * time.Second), func() {
+				bot.Request(tgbotapi.NewChatAction(update.Message.Chat.ID, "typing"))
+			})
+
 		pollResponse:
 			for {
-				// debouncedType()
+				debouncedType()
 
 				select {
 				case response, ok := <-feed:
@@ -147,6 +150,11 @@ func main() {
 					}
 					lastResp = markdown.EnsureFormatting(response.Message)
 					msg.Text = lastResp
+
+					
+					if !response.Finished && os.Getenv("LIVE_MODE") == "disabled" {
+						continue
+					}
 
 					if message.MessageID == 0 {
 						message, err = bot.Send(msg)

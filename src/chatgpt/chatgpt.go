@@ -42,6 +42,7 @@ type ChatResponse struct {
 	Message        string
 	MessageId      string
 	ConversationId string
+	Finished	 bool
 }
 
 func Init(config config.Config) ChatGPT {
@@ -80,6 +81,8 @@ func (c *ChatGPT) SendMessage(message string, conversationId string, messageId s
 		return nil, errors.New(fmt.Sprintf("Couldn't connect to ChatGPT: %v", err))
 	}
 
+	fullMessage := ""
+
 	go func() {
 		defer close(r)
 	mainLoop:
@@ -90,6 +93,16 @@ func (c *ChatGPT) SendMessage(message string, conversationId string, messageId s
 					break mainLoop
 				}
 
+				if string([]byte(chunk)) == "[DONE]" {
+					r <- ChatResponse{
+						MessageId:      messageId,
+						ConversationId: conversationId,
+						Message:        fullMessage,
+						Finished: 		true,
+					}
+					continue;
+				}
+
 				var res MessageResponse
 				err := json.Unmarshal([]byte(chunk), &res)
 				if err != nil {
@@ -98,10 +111,12 @@ func (c *ChatGPT) SendMessage(message string, conversationId string, messageId s
 				}
 
 				if len(res.Message.Content.Parts) > 0 {
+					fullMessage = res.Message.Content.Parts[0]
 					r <- ChatResponse{
 						MessageId:      res.Message.ID,
 						ConversationId: res.ConversationId,
 						Message:        res.Message.Content.Parts[0],
+						Finished: 		false,
 					}
 				}
 			}
