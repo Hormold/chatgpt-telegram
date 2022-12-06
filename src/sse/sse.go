@@ -56,7 +56,8 @@ func (c *Client) Connect(message string, conversationId string, parentMessageId 
         "model": "text-davinci-002-render",
 		"parent_message_id": "%s"%s
     }`, uuid.NewString(), string(messages), parentMessageId, conversationIdString)
-
+	// Add SSE timeout
+	
 	req, err := http.NewRequest("POST", c.URL, strings.NewReader(body))
 	if err != nil {
 		return errors.New(fmt.Sprintf("failed to create request: %v", err))
@@ -91,6 +92,7 @@ func (c *Client) Connect(message string, conversationId string, parentMessageId 
 				break
 			}
 			if event.Data() == "[DONE]" || event.Data() == "" {
+				c.EventChannel <- "[DONE]"
 				break
 			}
 
